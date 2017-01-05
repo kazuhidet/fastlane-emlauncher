@@ -1,3 +1,4 @@
+# coding: utf-8
 require "fastlane/actions/emlauncher/version"
 
 module Fastlane
@@ -17,7 +18,7 @@ module Fastlane
         command = <<-EOL
 curl #{options[:api_url]} \
   -F api_key=#{options[:api_token]} \
-  -F file=@#{options[:ipa]} \
+  -F file=@#{options[:pkg]} \
   -F title='#{options[:title]}' \
   -F description='#{options[:message]}' \
   -F tags='#{options[:tags]}'
@@ -40,6 +41,10 @@ curl #{options[:api_url]} \
 
       def self.available_options
         # Below a few examples
+        platform = Actions.lane_context[Actions::SharedValues::PLATFORM_NAME]
+
+        if platform == :ios or platform.nil?
+	
         options = [
           {
               key: :api_url,
@@ -55,8 +60,8 @@ curl #{options[:api_url]} \
               end,
           },
           {
-              key: :ipa,
-              env_name: "FL_EMLAUNCHER_IPA_PATH",
+              key: :pkg,
+              env_name: "FL_EMLAUNCHER_PKG_PATH",
               description: "Path to your IPA file. Optional if you use the `ipa` or `xcodebuild` action",
               default_value: Actions.lane_context[SharedValues::IPA_OUTPUT_PATH],
               verify_block: Proc.new do |value|
@@ -83,6 +88,53 @@ curl #{options[:api_url]} \
           },
         ]
 
+        else
+
+        options = [
+          {
+              key: :api_url,
+              env_name: "FL_EMLAUNCHER_API_URL",
+              description: "API URL for EmlauncherAction",
+          },
+          {
+              key: :api_token,
+              env_name: "FL_EMLAUNCHER_API_TOKEN", # The name of the environment variable
+              description: "API Token for EmlauncherAction", # a short description of this parameter
+              verify_block: Proc.new do |value|
+                raise "No API token for EmlauncherAction given, pass using `api_token: 'token'`".red unless (value and not value.empty?)
+              end,
+          },
+          {
+              key: :pkg,
+              env_name: "FL_EMLAUNCHER_PKG_PATH",
+              description: "Path to your APK file. Optional if you use the `gradle` action",
+              default_value: Actions.lane_context[SharedValues::GRADLE_APK_OUTPUT_PATH],
+              verify_block: Proc.new do |value|
+                raise "Couldn't find apk file at path '#{value}'".red unless File.exists?(value)
+              end,
+          },
+          {
+              key: :title,
+              env_name: "FL_EMLAUNCHER_TITLE",
+              description: "title",
+              default_value: "new build",
+          },
+          {
+              key: :message,
+              env_name: "FL_EMLAUNCHER_MESSAGE",
+              description: "Release Notes",
+              default_value: "No changelog provided",
+          },
+          {
+              key: :tags,
+              env_name: "FL_EMLAUNCHER_TAGS",
+              description: "tags",
+              default_value: "",
+          },
+        ]
+
+        end
+
         options.map {|option|
           FastlaneCore::ConfigItem.new(option)
         }
@@ -97,7 +149,7 @@ curl #{options[:api_url]} \
       end
 
       def self.is_supported?(platform)
-        platform == :ios
+        platform == :ios || platform == :android
       end
     end
   end
